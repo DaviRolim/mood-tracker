@@ -2,36 +2,57 @@
   (:require [io.pedestal.http :as http]
             [io.pedestal.interceptor :as i]
             [io.pedestal.test :as test]
-            [io.pedestal.http.route :as route]))
+            [com.stuartsierra.component :as component]))
 
 
+  (defn- service-map-base [routes] {::http/routes routes
+                                    ::http/port   8890
+                                    ::http/type   :jetty
+                                    ::http/join?  false})
 
-(defn respond-hello [request]
-  {:status 200 :body "Hello, world!"})
+(defn- service-map
+  [service-map-base]
+  (-> service-map-base
+    (http/default-interceptors)))
 
-(def routes
-  (route/expand-routes
-    #{["/greet" :get respond-hello :route-name :greet]}))
-
-(def service-map-base {::http/routes routes
-                       ::http/port   8890
-                       ::http/type   :jetty
-                       ::http/join?  false})
-
-(def service-map (-> service-map-base
-                     (http/default-interceptors)))
-
-(defonce server (atom nil))
-
-(defn start-server []
+(defn- start-server [server service-map]
   (reset! server (http/start (http/create-server service-map))))
 
-(defn test-request [verb url]
-  (test/response-for (::http/service-fn @server) verb url))
+(defprotocol ServerProvider
+  (test-request [self verb url]
+    "Execute http tests usign REPL"))
 
-(defn stop-server []
-  (http/stop @server))
+(defrecord Server [database routes]
+     component/Lifecycle
+       (start [this]
+         (println "Starting Server")
+         (let [s-map (service-map (service-map-base (:routes routes)))
+               server (atom nil)]
+           ;; TODO inject database as interceptor in servicemap?
+           (start-server server s-map)
+         (assoc this :test-request test-request :server server)))
 
-(defn restart-server []
-  (stop-server)
-  (start-server))
+      (stop [this]
+        (println "Stopping Server")
+        (dissoc this :test-request)
+        this)
+  ServerProvider
+  (test-request [this verb url]
+    (let [server (:server this)]
+      (test/response-for (::http/service-fn @server) verb url))))
+
+
+
+(defn new-server []
+  (map->Server {}))
+
+
+
+
+
+;(defn stop-server []
+;  (http/stop @server))
+;
+;(defn restart-server []
+;  (stop-server)
+;  (start-server))
