@@ -12,7 +12,8 @@
                  [cheshire "5.10.1"]
                  [org.slf4j/slf4j-simple "1.7.32"]
                  [prismatic/schema "1.2.0"]
-                 [prismatic/schema-generators "0.1.3"]]
+                 [prismatic/schema-generators "0.1.3"]
+                 [nubank/matcher-combinators "3.3.1"]]
   :test-paths ["test/unit/" "test/integration/"]
   :profiles {:uberjar {:aot :all}
              :dev     {:dependencies [[nubank/matcher-combinators "3.3.1"]
